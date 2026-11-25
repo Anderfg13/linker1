@@ -11,7 +11,8 @@ let currentLinkId = null;
 
 function setMessage(text, isError = false) {
   message.textContent = text;
-  message.style.color = isError ? '#fca5a5' : '#9fb2d1';
+  message.classList.toggle('message-error', isError);
+  message.setAttribute('role', isError ? 'alert' : 'status');
 }
 
 function setResult(shortUrl, linkId) {
@@ -21,74 +22,77 @@ function setResult(shortUrl, linkId) {
   result.classList.remove('hidden');
 }
 
+function creationError(response, responseMessage) {
+  if (response.status === 409) {
+    return 'El alias no está disponible. Elige otro.';
+  }
+  if (response.status === 400) {
+    if (responseMessage.startsWith('La URL')) return responseMessage;
+    if (responseMessage.startsWith('El alias')) return responseMessage;
+    return 'Revisa la URL y el alias. Se aceptan direcciones web HTTP o HTTPS.';
+  }
+  return 'No fue posible crear el enlace. Inténtalo más tarde.';
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   result.classList.add('hidden');
-  setMessage('Creating link...');
+  setMessage('Creando el enlace…');
 
   try {
     const alias = aliasInput.value.trim();
     const payload = { url: urlInput.value.trim() };
-    if (alias) {
-      payload.alias = alias;
-    }
+    if (alias) payload.alias = alias;
 
     const response = await fetch('/link', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
-    const text = await response.text();
+    const responseMessage = await response.text();
 
     if (!response.ok) {
-      throw new Error(text || 'Could not shorten the URL.');
+      throw new Error(creationError(response, responseMessage));
     }
 
-    const shortPath = response.headers.get('Location') || `/${text}`;
+    const shortPath = response.headers.get('Location') || `/${responseMessage}`;
     const shortUrl = new URL(shortPath, window.location.origin).toString();
     const linkId = shortPath.startsWith('/') ? shortPath.slice(1) : shortPath;
 
     setResult(shortUrl, linkId);
-    setMessage('Link ready.');
+    setMessage('Enlace listo para compartir.');
   } catch (error) {
-    setMessage(error.message, true);
+    setMessage(error instanceof TypeError
+      ? 'No se pudo conectar con Linker1. Inténtalo de nuevo.'
+      : error.message, true);
   }
 });
 
 copyButton.addEventListener('click', async () => {
   const value = shortLink.href;
-  if (!value) {
-    return;
-  }
+  if (!value) return;
 
   try {
     await navigator.clipboard.writeText(value);
-    setMessage('Link copied to clipboard.');
+    setMessage('Enlace copiado al portapapeles.');
   } catch (error) {
-    setMessage('Could not copy the link.', true);
+    setMessage('No se pudo copiar el enlace. Selecciónalo y cópialo manualmente.', true);
   }
 });
 
 deleteButton.addEventListener('click', async () => {
-  if (!currentLinkId) {
-    return;
-  }
-
-  setMessage('Deleting link...');
+  if (!currentLinkId) return;
+  setMessage('Eliminando el enlace…');
 
   try {
     const response = await fetch(`/${currentLinkId}`, { method: 'DELETE' });
-
     if (!response.ok && response.status !== 404) {
-      throw new Error('Could not delete the link.');
+      throw new Error('No se pudo eliminar el enlace. Inténtalo de nuevo.');
     }
 
     result.classList.add('hidden');
     currentLinkId = null;
-    setMessage('Link deleted.');
+    setMessage('Enlace eliminado.');
   } catch (error) {
     setMessage(error.message, true);
   }
