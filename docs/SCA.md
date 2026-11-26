@@ -22,3 +22,15 @@ La primera ejecución descarga la base NVD y tarda varios minutos; las siguiente
 
 ## Ejercicio del laboratorio (pendiente del equipo)
 Crear una rama con `commons-text` 1.9 (CVE-2022-42889), ver cómo el check falla, subir a 1.15.0 y ver cómo pasa, y practicar una supresión. Debe hacerlo el equipo y documentar el resultado con capturas; no se ejecutó aquí.
+
+## Primer resultado (26 nov 2026) y qué se hizo
+La primera ejecución falló con CVSS ≥ 7 en cuatro grupos de librerías:
+
+| Librería | Hallazgo | Acción |
+|---|---|---|
+| `sqlite-jdbc` 3.49.1.0 | Varios CVE de SQLite (FTS5), corregidos en SQLite 3.54.0 | Actualizada a `3.54.1.0` |
+| `mysql-connector-j` 9.7.0 | CVE-2026-60586 y CVE-2026-60623 (afectan 9.7.0–9.7.1) | Actualizada a `26.10.0` |
+| `kotlin-stdlib` y sus `-jdk7`/`-jdk8` 1.9.25 (transitivas de Javalin) | CVE-2026-53914 (Kotlin anterior a 2.4.20; trata de la caché de compilación) | Se fijan en `2.4.21` en `dependencyManagement` |
+| Jetty 11.0.24 (transitiva de Javalin 6.5.0) | CVE-2026-2332, CVE-2026-5795, CVE-2026-10050, CVE-2025-5115 | **Suprimida con vencimiento 2027-03-01**: no existe un Jetty 11 corregido en Maven Central (el más alto es 11.0.26). Solución real: migrar a Javalin 7 (Jetty 12) |
+
+Pendiente del equipo: confirmar que la aplicación sigue funcionando con las versiones nuevas (CI en verde y prueba manual) y decidir cuándo migrar a Javalin 7. La supresión de Jetty es una decisión de riesgo, no una corrección.
