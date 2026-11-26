@@ -130,12 +130,12 @@ resource "aws_lb_listener" "test" {
   }
 }
 
-data "aws_cloudfront_cache_policy" "disabled" {
-  name = "Managed-CachingDisabled"
-}
-
-data "aws_cloudfront_origin_request_policy" "all_viewer" {
-  name = "Managed-AllViewer"
+# AWS-managed policy IDs, hardcoded on purpose: Learner Lab denies
+# cloudfront:ListCachePolicies / ListOriginRequestPolicies, so they cannot be
+# looked up by name. These IDs are fixed and documented by AWS.
+locals {
+  cf_cache_policy_caching_disabled    = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+  cf_origin_request_policy_all_viewer = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewer
 }
 
 # HTTPS without a domain: CloudFront's default *.cloudfront.net certificate.
@@ -163,8 +163,8 @@ resource "aws_cloudfront_distribution" "linker1" {
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    cache_policy_id          = local.cf_cache_policy_caching_disabled
+    origin_request_policy_id = local.cf_origin_request_policy_all_viewer
   }
 
   restrictions {
