@@ -40,6 +40,7 @@ public class Main {
         );
 
         var repository = new LinkRepository(conn);
+        repository.ensureClicksColumn();
         var service = new LinkService(repository);
 
         var requestMetrics = new RequestMetrics(telemetry.meter());

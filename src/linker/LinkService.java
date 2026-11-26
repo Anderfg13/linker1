@@ -87,6 +87,18 @@ public class LinkService {
         return !RESERVED_ALIASES.contains(alias);
     }
 
+    /** Resuelve el enlace para una redirección y cuenta la apertura. null si no existe. */
+    public String open(String id) throws SQLException {
+        if (!repository.incrementClicks(id)) {
+            return null;
+        }
+        return repository.findUrlById(id);
+    }
+
+    public Long getClicks(String id) throws SQLException {
+        return repository.findClicksById(id);
+    }
+
     public static String generateId() {
         return UUID.randomUUID().toString().substring(0, 8);
     }

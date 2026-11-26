@@ -12,3 +12,5 @@ infra/*.tfstate
 infra/*.tfstate.backup
 infra/*.env
 infra/linker.env
+
+.idea/*
