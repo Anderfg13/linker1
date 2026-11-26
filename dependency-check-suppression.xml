@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Dependency-Check suppressions. Every entry needs: a reason, who reviewed it,
+     the date, and an `until` expiry so it gets re-evaluated. Empty on purpose. -->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>

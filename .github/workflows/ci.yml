@@ -114,6 +114,72 @@ jobs:
             target/linker1-1.0-jar-with-dependencies.jar
             target/linker1
 
+  # SCA (OWASP Dependency-Check) -- lab: https://eci-arcn.github.io/Labs/sca-dependency-check/
+  # Skipped (green) until the NVD_API_KEY secret exists; see docs/SCA.md.
+  dependency-check:
+    name: Dependency Check (SCA)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+    steps:
+      - name: Skip notice
+        if: env.NVD_API_KEY == ''
+        run: echo "::notice::NVD_API_KEY is not set, skipping Dependency-Check (see docs/SCA.md)."
+
+      - name: Checkout repository
+        if: env.NVD_API_KEY != ''
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        if: env.NVD_API_KEY != ''
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Today's date (NVD cache key)
+        if: env.NVD_API_KEY != ''
+        id: date
+        run: echo "day=$(date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore NVD cache
+        if: env.NVD_API_KEY != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.dependency-check-data
+          key: nvd-${{ steps.date.outputs.day }}
+          restore-keys: nvd-
+
+      - name: Run Dependency-Check
+        if: env.NVD_API_KEY != ''
+        run: mvn -B -ntp org.owasp:dependency-check-maven:13.0.0:check
+
+      - name: Save NVD cache
+        if: always() && env.NVD_API_KEY != ''
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.dependency-check-data
+          key: nvd-${{ steps.date.outputs.day }}
+
+      - name: Upload SARIF to Code scanning
+        if: always() && env.NVD_API_KEY != '' && hashFiles('target/dependency-check-report.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: target/dependency-check-report.sarif
+          category: dependency-check
+
+      - name: Upload HTML report
+        if: always() && env.NVD_API_KEY != '' && hashFiles('target/dependency-check-report.html') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+
   summary:
     name: Summary
     runs-on: ubuntu-latest
@@ -218,7 +284,10 @@ jobs:
   api-tests:
     name: API Tests (Live)
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/DEV' )
+    # Runs only when the repository variable LIVE_BASE_URL is set (for example
+    # http://<alb>.us-east-1.elb.amazonaws.com), so forks without a live
+    # deployment are not blocked by a URL they do not own.
+    if: github.event_name == 'push' && vars.LIVE_BASE_URL != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/DEV' )
 
     steps:
       - name: Checkout repository
@@ -227,7 +296,7 @@ jobs:
       - name: Run Newman against the live instance
         run: |
           npx --yes newman run postman/linker1.postman_collection.json \
-            --env-var "baseUrl=https://1.n-la-c.app" \
+            --env-var "baseUrl=${{ vars.LIVE_BASE_URL }}" \
             --reporters cli,junit --reporter-junit-export newman-report.xml
 
       - name: Upload Newman report
