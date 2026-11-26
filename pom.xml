@@ -188,6 +188,26 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>13.0.0</version>
+                <!-- No <executions>: it does not run on `mvn verify`; invoke explicitly:
+                     mvn org.owasp:dependency-check-maven:13.0.0:check (see docs/SCA.md) -->
+                <configuration>
+                    <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <dataDirectory>${user.home}/.dependency-check-data</dataDirectory>
+                    <formats>
+                        <format>HTML</format>
+                        <format>SARIF</format>
+                    </formats>
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                    <suppressionFiles>
+                        <suppressionFile>${project.basedir}/dependency-check-suppression.xml</suppressionFile>
+                    </suppressionFiles>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
