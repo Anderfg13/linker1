@@ -28,12 +28,37 @@ public class Main {
         Telemetry telemetry = Telemetry.createFromEnvironment();
         log.info("Telemetry initialized (service={})", Telemetry.INSTRUMENTATION_SCOPE);
 
-        var dbPath = System.getenv().getOrDefault("LINKER_DB_PATH", "linker1.db");
-        var conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-        try (var stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE IF NOT EXISTS shorturl (id TEXT PRIMARY KEY, url TEXT)");
+        // Registered explicitly: the fat jar's assembly step merges every
+        // dependency's META-INF/services/java.sql.Driver into one file with a
+        // "last one wins" strategy, which silently drops the MySQL driver's
+        // auto-registration in favor of SQLite's. Loading the class directly
+        // triggers its static registration block regardless of that merge.
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        Class.forName("org.sqlite.JDBC");
+        var mysqlHost = System.getenv().getOrDefault("MYSQL_HOST", "localhost");
+        var mysqlDatabase = System.getenv().getOrDefault("MYSQL_DATABASE", "");
+        var mysqlUser = System.getenv().getOrDefault("MYSQL_USER", "");
+        var mysqlPassword = System.getenv().getOrDefault("MYSQL_PWD", "");
+        var mysqlUrl = "jdbc:mysql://" + mysqlHost + "/" + mysqlDatabase;
+
+        // Links live in SQLite by default. Setting LINKER_STORAGE=mysql stores
+        // them in the MySQL database above instead (e.g. AWS RDS), so they
+        // survive blue/green redeploys that replace the VM.
+        Connection conn;
+        if ("mysql".equalsIgnoreCase(System.getenv("LINKER_STORAGE"))) {
+            conn = DriverManager.getConnection(mysqlUrl + "?autoReconnect=true", mysqlUser, mysqlPassword);
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("CREATE TABLE IF NOT EXISTS shorturl (id VARCHAR(64) PRIMARY KEY, url TEXT)");
+            }
+            log.info("Database ready (storage=mysql host={})", mysqlHost);
+        } else {
+            var dbPath = System.getenv().getOrDefault("LINKER_DB_PATH", "linker1.db");
+            conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+            try (var stmt = conn.createStatement()) {
+                stmt.execute("CREATE TABLE IF NOT EXISTS shorturl (id TEXT PRIMARY KEY, url TEXT)");
+            }
+            log.debug("Database ready at path={}", dbPath);
         }
-        log.debug("Database ready at path={}", dbPath);
 
         int port = Integer.parseInt(
             System.getenv().getOrDefault("LINKER_PORT", "8080")
@@ -47,17 +72,6 @@ public class Main {
         var linkSpans = new LinkSpans(telemetry.tracer(), telemetry.meter());
         var systemMetrics = new SystemMetrics(telemetry.meter());
 
-        // Registered explicitly: the fat jar's assembly step merges every
-        // dependency's META-INF/services/java.sql.Driver into one file with a
-        // "last one wins" strategy, which silently drops the MySQL driver's
-        // auto-registration in favor of SQLite's. Loading the class directly
-        // triggers its static registration block regardless of that merge.
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        var mysqlHost = System.getenv().getOrDefault("MYSQL_HOST", "localhost");
-        var mysqlDatabase = System.getenv().getOrDefault("MYSQL_DATABASE", "");
-        var mysqlUser = System.getenv().getOrDefault("MYSQL_USER", "");
-        var mysqlPassword = System.getenv().getOrDefault("MYSQL_PWD", "");
-        var mysqlUrl = "jdbc:mysql://" + mysqlHost + "/" + mysqlDatabase;
         Supplier<Connection> mysqlConnectionSupplier = () -> {
             try {
                 return DriverManager.getConnection(mysqlUrl, mysqlUser, mysqlPassword);
