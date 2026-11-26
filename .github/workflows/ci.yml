@@ -194,7 +194,7 @@ jobs:
             -d '{"url":"https://example.com"}')
           echo "Created id: $ID"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$ID)
-          test "$STATUS" = "301"
+          test "$STATUS" = "302"
           LOCATION=$(curl -s -D - -o /dev/null http://localhost:8080/$ID | grep -i '^location:' | tr -d '\r')
           echo "$LOCATION" | grep -q "https://example.com"
 
@@ -204,7 +204,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"url":"https://example.org","alias":"ci-smoke-alias"}' > /dev/null
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ci-smoke-alias)
-          test "$STATUS" = "301"
+          test "$STATUS" = "302"
           CONFLICT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/link \
             -H "Content-Type: application/json" \
             -d '{"url":"https://other.example.org","alias":"ci-smoke-alias"}')
