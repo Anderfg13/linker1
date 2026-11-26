@@ -21,10 +21,17 @@ Linker1 is a web application that lets you:
   - Destinations must be absolute HTTP or HTTPS URLs with a valid host. Other schemes, relative URLs, and URLs without a host respond `400` and are not stored.
   - Custom alias (optional): `{"url": "https://...", "alias": "my-alias"}`. Alias rules: letters, numbers, hyphen (`-`), and underscore (`_`) only, between 1 and 64 characters, no spaces. `link`, `healthz`, `app.js`, and `styles.css` are reserved. If the alias is already taken by another URL, responds `409`; if the alias is invalid or reserved, responds `400`.
   - Creation validation errors are returned in Spanish without echoing the submitted URL or alias. See [secure link creation](docs/SECURE_LINKS.md) for the API contract, security boundaries, and local examples.
-- `GET /{id}` — Redirects (`301`) to the URL associated with the short code or alias. Responds `404` if it doesn't exist.
-- `HEAD /{id}` — Resolves a short link. Responds `200` with the real URL in the response body if found (without redirecting), or `404` if not.
+- `GET /{id}` — Redirects (`302`, with `Cache-Control: no-store`) to the URL associated with the short code or alias, and counts one opening. Responds `404` if it doesn't exist. The redirect is temporary and uncacheable on purpose, so every visit reaches the server and is counted.
+- `HEAD /{id}` — Resolves a short link. Responds `200` with the real URL in the response body if found (without redirecting), or `404` if not Does not count as an opening.
 - `DELETE /{id}` — Deletes a short link. Responds `204` on success, or `404` if the short code or alias doesn't exist.
 - `GET /link/{id}/stats` — Returns `200` with `{"id":"...","clicks":N}`, or `404` if the link doesn't exist. Does not count as an opening.
+
+## Running and deploying
+
+- Local run without private credentials: [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
+- Blue/green deployment on AWS (this fork): [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md). The original Oracle Cloud pipeline is described in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+- Dependency vulnerability scan (OWASP Dependency-Check): [`docs/SCA.md`](docs/SCA.md).
+- Process evidence for the course (Lean metrics, traceability, operations): [`docs/proceso/`](docs/proceso/README.md).
 
 ## Course Deliverables (final assignment)
 
