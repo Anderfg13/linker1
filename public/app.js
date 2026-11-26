@@ -6,6 +6,8 @@ const result = document.getElementById('result');
 const shortLink = document.getElementById('short-link');
 const copyButton = document.getElementById('copy-btn');
 const deleteButton = document.getElementById('delete-btn');
+const statsButton = document.getElementById('stats-btn');
+const statsResult = document.getElementById('stats-result');
 
 let currentLinkId = null;
 
@@ -19,11 +21,13 @@ function setResult(shortUrl, linkId) {
   shortLink.href = shortUrl;
   currentLinkId = linkId;
   result.classList.remove('hidden');
+  statsResult.textContent = '';
 }
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   result.classList.add('hidden');
+  statsResult.textContent = '';
   setMessage('Creating link...');
 
   try {
@@ -81,6 +85,7 @@ deleteButton.addEventListener('click', async () => {
 
   try {
     const response = await fetch(`/${currentLinkId}`, { method: 'DELETE' });
+    statsResult.textContent = '';
 
     if (!response.ok && response.status !== 404) {
       throw new Error('Could not delete the link.');
@@ -91,5 +96,32 @@ deleteButton.addEventListener('click', async () => {
     setMessage('Link deleted.');
   } catch (error) {
     setMessage(error.message, true);
+  }
+});
+
+statsButton.addEventListener('click', async () => {
+  if (!currentLinkId) {
+    return;
+  }
+
+  statsResult.textContent = 'Consultando aperturas...';
+
+  try {
+    const response = await fetch(`/link/${encodeURIComponent(currentLinkId)}/stats`);
+
+    if (response.status === 404) {
+      statsResult.textContent = 'Este enlace ya no existe, así que no hay aperturas para mostrar.';
+      return;
+    }
+    if (!response.ok) {
+      throw new Error('stats');
+    }
+
+    const data = await response.json();
+    statsResult.textContent = data.clicks === 1
+        ? 'Tu enlace se ha abierto 1 vez.'
+        : `Tu enlace se ha abierto ${data.clicks} veces.`;
+  } catch (error) {
+    statsResult.textContent = 'No pudimos consultar las aperturas. Inténtalo de nuevo.';
   }
 });
