@@ -384,8 +384,6 @@ See [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) for the full workflow, 
 
 ## Team
 
-- ANDERSSON DAVID SÁNCHEZ MÉNDEZ
-- ANDERSON FABIAN GARCIA NIETO
-- DANIEL PATIÑO MEJIA
-- ESTEBAN AGUILERA CONTRERAS
-- JUAN JOSE DIAZ GOMEZ
+- Santiago Gualdrón Rincón
+- Anderson Fabian García Nieto
+- Natalia Espitia Espinel
