@@ -154,9 +154,23 @@ jobs:
           key: nvd-${{ steps.date.outputs.day }}
           restore-keys: nvd-
 
+      # Maven Central sometimes answers 429 (Too Many Requests) when downloading the
+      # plugin. Retry only for that kind of download failure; a real vulnerability
+      # finding (CVSS >= 7) fails immediately.
       - name: Run Dependency-Check
         if: env.NVD_API_KEY != ''
-        run: mvn -B -ntp org.owasp:dependency-check-maven:13.0.0:check
+        run: |
+          for attempt in 1 2 3 4; do
+            if mvn -B -ntp org.owasp:dependency-check-maven:13.0.0:check 2>&1 | tee dc.log; then
+              exit 0
+            fi
+            if grep -qE "status code: 429|Could not transfer artifact|could not be resolved" dc.log && [ "$attempt" -lt 4 ]; then
+              echo "::warning::Maven Central download failed (attempt $attempt/4); retrying in $((attempt * 30))s"
+              sleep $((attempt * 30))
+            else
+              exit 1
+            fi
+          done
 
       - name: Save NVD cache
         if: always() && env.NVD_API_KEY != ''
