@@ -53,6 +53,7 @@ public class Main {
         // auto-registration in favor of SQLite's. Loading the class directly
         // triggers its static registration block regardless of that merge.
         Class.forName("com.mysql.cj.jdbc.Driver");
+        Class.forName("org.sqlite.JDBC");
         var mysqlHost = System.getenv().getOrDefault("MYSQL_HOST", "localhost");
         var mysqlDatabase = System.getenv().getOrDefault("MYSQL_DATABASE", "");
         var mysqlUser = System.getenv().getOrDefault("MYSQL_USER", "");
