@@ -80,30 +80,37 @@ public class Main {
             }
         }, 0, 30, TimeUnit.SECONDS);
 
+        // LaunchDarkly is optional: if the SDK key is missing or the service is
+        // unreachable (e.g. an expired plan), run with default flag values
+        // (classic UI) instead of refusing to start.
         String ldSdkKey = System.getenv("LD_SDK_KEY");
+        LDClient ldClient = null;
         if (ldSdkKey == null || ldSdkKey.isBlank()) {
-            System.err.println("ERROR: The LD_SDK_KEY environment variable is not set.");
-            System.exit(1);
-        }
-
-        System.out.println("Initializing LaunchDarkly...");
-        LDClient ldClient;
-        if ("true".equalsIgnoreCase(System.getenv("LD_OFFLINE"))) {
-            com.launchdarkly.sdk.server.LDConfig config = new com.launchdarkly.sdk.server.LDConfig.Builder()
-                .offline(true)
-                .build();
-            ldClient = new LDClient(ldSdkKey, config);
+            System.err.println("WARN: LD_SDK_KEY is not set; feature flags will use their default values.");
         } else {
-            ldClient = new LDClient(ldSdkKey);
+            System.out.println("Initializing LaunchDarkly...");
+            try {
+                if ("true".equalsIgnoreCase(System.getenv("LD_OFFLINE"))) {
+                    com.launchdarkly.sdk.server.LDConfig config = new com.launchdarkly.sdk.server.LDConfig.Builder()
+                        .offline(true)
+                        .build();
+                    ldClient = new LDClient(ldSdkKey, config);
+                } else {
+                    ldClient = new LDClient(ldSdkKey);
+                }
+                if (ldClient.isInitialized()) {
+                    System.out.println("LaunchDarkly initialized successfully.");
+                } else {
+                    System.err.println("WARN: LaunchDarkly did not initialize; feature flags will use their default values.");
+                }
+            } catch (Exception e) {
+                System.err.println("WARN: LaunchDarkly failed to start (" + e.getClass().getSimpleName()
+                    + "); feature flags will use their default values.");
+            }
         }
 
-        if (!ldClient.isInitialized()) {
-            System.err.println("ERROR: Failed to initialize the LaunchDarkly client.");
-            System.exit(1);
-        }
-        System.out.println("LaunchDarkly initialized successfully.");
-
-        FeatureFlags featureFlags = new FeatureFlags(ldClient);
+        final LDClient ldClientForShutdown = ldClient;
+        FeatureFlags featureFlags = ldClient == null ? new FeatureFlags() : new FeatureFlags(ldClient);
 
         // Routes are registered before the server starts listening, so the port
         // never accepts a connection while it would otherwise 404 with no routes.
@@ -119,7 +126,9 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 telemetryScheduler.shutdown();
-                ldClient.close();
+                if (ldClientForShutdown != null) {
+                    ldClientForShutdown.close();
+                }
                 conn.close();
             } catch (Exception e) {
                 log.error("Error during shutdown", e);
