@@ -157,14 +157,29 @@ jobs:
 
       - name: Start app
         env:
-          LD_SDK_KEY: ${{ secrets.LD_SDK_KEY }}
+          LD_SDK_KEY: ci-offline
+          LD_OFFLINE: "true"
         run: |
+          set -e
           chmod +x linker1
-          LINKER_PORT=8080 ./linker1 &
+          LINKER_PORT=8080 ./linker1 > app.log 2>&1 &
+          APP_PID=$!
           for i in $(seq 1 20); do
-            curl -sf http://localhost:8080/ > /dev/null && break
+            if curl -fsS http://localhost:8080/ > /dev/null; then
+              echo "Linker1 is ready on port 8080"
+              exit 0
+            fi
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              echo "Linker1 exited before becoming ready; startup log follows:"
+              cat app.log
+              exit 1
+            fi
             sleep 1
           done
+          echo "Linker1 did not become ready within 20 seconds; startup log follows:"
+          cat app.log
+          kill "$APP_PID" 2>/dev/null || true
+          exit 1
 
       - name: Smoke test static routes
         run: |
