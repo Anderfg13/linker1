@@ -23,7 +23,9 @@ class LinkServiceAliasTest {
             stmt.execute("CREATE TABLE shorturl (id TEXT PRIMARY KEY, url TEXT)");
         }
         repo = new LinkRepository(conn);
+        repo.ensureClicksColumn();
         service = new LinkService(repo);
+
     }
 
     @Nested
