@@ -13,7 +13,7 @@
 # variables or Terraform state are needed between runs.
 #
 # Env: AWS_REGION (default us-east-1), REPO_URL, REPO_REF, LD_SDK_KEY (optional),
-#      INSTANCE_TYPE (default t3.small), INSTANCE_PROFILE (optional),
+#      MYSQL_PWD (RDS password, optional), INSTANCE_TYPE (default t3.small), INSTANCE_PROFILE (optional),
 #      OBSERVE_SECONDS (default 60), GITHUB_OUTPUT (optional, set by Actions).
 set -euo pipefail
 
@@ -77,6 +77,10 @@ def esc(v):  # systemd treats % and " specially inside Environment="..."
 env = []
 if os.environ.get("LD_SDK_KEY"):
     env.append('Environment="LD_SDK_KEY=%s"' % esc(os.environ["LD_SDK_KEY"]))
+if os.environ.get("MYSQL_HOST"):
+    for k in ("MYSQL_HOST", "MYSQL_DATABASE", "MYSQL_USER", "MYSQL_PWD"):
+        env.append('Environment="%s=%s"' % (k, esc(os.environ[k])))
+    env.append('Environment="LINKER_STORAGE=mysql"')
 out = tpl.replace("__REPO_URL__", os.environ["REPO_URL"]).replace("__REPO_REF__", os.environ["REPO_REF"])
 out = out.replace("__OPTIONAL_ENV__", "\n    ".join(env))
 sys.stdout.write(out)
@@ -96,6 +100,17 @@ cmd_launch() {
     --query 'sort_by(Images,&CreationDate)[-1].ImageId')"
   subnet="$(q ec2 describe-subnets --filters Name=default-for-az,Values=true --query 'Subnets[0].SubnetId')"
   log "ami=$ami subnet=$subnet"
+
+  # Optional RDS: if the database exists and MYSQL_PWD is provided, links go to MySQL.
+  export MYSQL_HOST="" MYSQL_DATABASE=linker MYSQL_USER=linker
+  MYSQL_HOST="$(aws rds describe-db-instances --db-instance-identifier linker1-db \
+    --query 'DBInstances[0].Endpoint.Address' --output text 2>/dev/null || true)"
+  if [ "$MYSQL_HOST" = "None" ]; then MYSQL_HOST=""; fi
+  if [ -n "$MYSQL_HOST" ] && [ -z "${MYSQL_PWD:-}" ]; then
+    log "WARNING: RDS exists but MYSQL_PWD is not set; falling back to local SQLite (links will not persist)"
+    MYSQL_HOST=""
+  fi
+  if [ -n "$MYSQL_HOST" ]; then log "storage: mysql ($MYSQL_HOST)"; else log "storage: sqlite (local to the VM)"; fi
 
   local ud; ud="$(mktemp)"; render_user_data > "$ud"
   local profile=(); [ -n "${INSTANCE_PROFILE:-}" ] && profile=(--iam-instance-profile "Name=$INSTANCE_PROFILE")

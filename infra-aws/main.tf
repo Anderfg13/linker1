@@ -177,3 +177,52 @@ resource "aws_cloudfront_distribution" "linker1" {
     cloudfront_default_certificate = true
   }
 }
+
+# ── Optional RDS MySQL: persistent link storage across blue/green deploys ──
+resource "aws_security_group" "db" {
+  count       = var.enable_rds ? 1 : 0
+  name        = "linker1-db"
+  description = "linker1 MySQL: reachable only from the app VMs"
+  vpc_id      = data.aws_vpc.default.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "db_from_instances" {
+  count                        = var.enable_rds ? 1 : 0
+  security_group_id            = aws_security_group.db[0].id
+  ip_protocol                  = "tcp"
+  from_port                    = 3306
+  to_port                      = 3306
+  referenced_security_group_id = aws_security_group.instance.id
+}
+
+resource "aws_db_subnet_group" "linker1" {
+  count      = var.enable_rds ? 1 : 0
+  name       = "linker1-db"
+  subnet_ids = data.aws_subnets.default.ids
+}
+
+resource "aws_db_instance" "linker1" {
+  count                   = var.enable_rds ? 1 : 0
+  identifier              = "linker1-db"
+  engine                  = "mysql"
+  engine_version          = "8.0"
+  instance_class          = "db.t3.micro"
+  allocated_storage       = 20
+  db_name                 = "linker"
+  username                = "linker"
+  password                = var.db_password
+  db_subnet_group_name    = aws_db_subnet_group.linker1[0].name
+  vpc_security_group_ids  = [aws_security_group.db[0].id]
+  publicly_accessible     = false
+  multi_az                = false
+  backup_retention_period = 0
+  skip_final_snapshot     = true
+  apply_immediately       = true
+
+  lifecycle {
+    precondition {
+      condition     = length(var.db_password) >= 8
+      error_message = "Set db_password (8+ characters) when enable_rds is true."
+    }
+  }
+}

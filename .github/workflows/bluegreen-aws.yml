@@ -31,6 +31,7 @@ env:
   AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
   REPO_URL: https://github.com/${{ github.repository }}
   LD_SDK_KEY: ${{ secrets.LD_SDK_KEY }}
+  MYSQL_PWD: ${{ secrets.MYSQL_PWD }}
   INSTANCE_PROFILE: ${{ vars.AWS_INSTANCE_PROFILE }}
 
 jobs:

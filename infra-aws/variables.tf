@@ -9,3 +9,16 @@ variable "enable_cloudfront" {
   type        = bool
   default     = true
 }
+
+variable "enable_rds" {
+  description = "Create an RDS MySQL database so links survive blue/green deploys."
+  type        = bool
+  default     = true
+}
+
+variable "db_password" {
+  description = "Master password of the RDS database (also store it in the MYSQL_PWD GitHub secret). 8+ chars, no / @ \" or spaces."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
