@@ -70,7 +70,8 @@ public final class LinkRoutes {
             }
 
             if (url != null) {
-                log.info("Resolved link id={} for HEAD to url={}", id, url);
+                // HEAD still returns the destination by API contract, but avoid duplicating it in logs.
+                log.info("Resolved link id={} for HEAD", id);
                 ctx.status(200).result(url);
                 requestMetrics.recordRequest("/{id}", 200, System.currentTimeMillis() - start);
             } else {
