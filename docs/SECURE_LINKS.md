@@ -4,7 +4,7 @@ The `POST /link` endpoint validates destinations on the server before any databa
 
 Custom aliases remain optional. They must contain 1–64 ASCII letters, digits, hyphens, or underscores. Aliases that collide with registered application routes or static resources (`link`, `healthz`, `app.js`, and `styles.css`) are reserved, case-insensitively. Invalid or reserved aliases receive HTTP `400`; an alias already assigned to another URL receives HTTP `409`. Reusing the same alias for the same URL remains idempotent.
 
-Validation errors returned by the web and Lambda APIs are Spanish, actionable messages. They do not echo the submitted destination or alias. Creation and redirect logs record link IDs and outcomes without logging destination URLs, which may contain private query parameters. The browser uses text nodes for messages and link labels rather than inserting API content as HTML.
+Validation errors returned by the web and Lambda APIs are Spanish, actionable messages. They do not echo the submitted destination or alias. Creation, redirect, and HEAD-resolution logs record link IDs and outcomes without logging destination URLs, which may contain private query parameters. The browser uses text nodes for messages and link labels rather than inserting API content as HTML.
 
 ## Try the API locally
 

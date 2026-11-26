@@ -206,6 +206,13 @@ class LinkRoutesTest {
         assertEquals(400, response.statusCode());
         assertFalse(response.body().contains("javascript"));
         assertTrue(response.body().contains("La URL no es válida"));
+        try (var ps = conn.prepareStatement("SELECT COUNT(*) AS total FROM shorturl WHERE url = ?")) {
+            ps.setString(1, "javascript:alert(1)");
+            try (var rs = ps.executeQuery()) {
+                assertTrue(rs.next());
+                assertEquals(0, rs.getInt("total"));
+            }
+        }
     }
 
     @Test

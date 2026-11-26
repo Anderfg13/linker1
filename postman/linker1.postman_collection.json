@@ -225,6 +225,29 @@
             },
             "url": "{{baseUrl}}/link"
           }
+        },
+        {
+          "name": "POST /link with reserved healthz alias returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('response explains that the alias is reserved', () => pm.expect(pm.response.text()).to.include('reservado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"url\":\"https://healthz-postman.example.com\",\"alias\":\"healthz\"}"
+            },
+            "url": "{{baseUrl}}/link"
+          }
         }
       ]
     },
