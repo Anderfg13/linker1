@@ -43,6 +43,9 @@ class StaticRoutesTest {
 
         assertEquals(200, response.statusCode());
         assertTrue(response.body().contains("<html"));
+        assertTrue(response.body().contains("lang=\"es\""));
+        assertTrue(response.body().contains("Dirección web de destino"));
+        assertTrue(response.body().contains("novalidate"));
     }
 
     @Test
@@ -150,7 +153,9 @@ class StaticRoutesTest {
             var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             assertEquals(200, response.statusCode());
-            assertTrue(response.body().contains("Colombia Edition"));
+            assertTrue(response.body().contains("lang=\"es\""));
+            assertTrue(response.body().contains("Dirección web de destino"));
+            assertTrue(response.body().contains("novalidate"));
         } finally {
             appWithFlags.stop();
         }
