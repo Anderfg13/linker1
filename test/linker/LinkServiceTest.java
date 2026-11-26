@@ -142,8 +142,23 @@ class LinkServiceTest {
         }
 
         @Test
-        void returnsTrueForFtpUrl() {
-            assertTrue(LinkService.isValidUrl("ftp://files.example.com"));
+        void rejectsSchemesOtherThanHttpAndHttps() {
+            assertFalse(LinkService.isValidUrl("ftp://files.example.com"));
+            assertFalse(LinkService.isValidUrl("javascript:alert(1)"));
+            assertFalse(LinkService.isValidUrl("data:text/html,hello"));
+            assertFalse(LinkService.isValidUrl("file:///etc/passwd"));
+        }
+
+        @Test
+        void rejectsHttpUrisWithoutAValidHost() {
+            assertFalse(LinkService.isValidUrl("https:///missing-host"));
+            assertFalse(LinkService.isValidUrl("http://example.com:99999/path"));
+        }
+
+        @Test
+        void acceptsSchemeCaseInsensitively() {
+            assertTrue(LinkService.isValidUrl("HTTPS://example.com/path"));
+            assertTrue(LinkService.isValidUrl("HtTp://example.com/path"));
         }
     }
 

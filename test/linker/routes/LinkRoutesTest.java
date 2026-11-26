@@ -191,6 +191,68 @@ class LinkRoutesTest {
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("http://") && response.body().contains("https://"));
+        assertFalse(response.body().contains("not a url"));
+    }
+
+    @Test
+    void postLinkWithDangerousSchemeReturns400WithoutStoringUrl() throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/link"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"url\":\"javascript:alert(1)\"}"))
+                .build();
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(400, response.statusCode());
+        assertFalse(response.body().contains("javascript"));
+        assertTrue(response.body().contains("La URL no es válida"));
+    }
+
+    @Test
+    void postLinkWithReservedHealthAliasReturnsHelpful400AndDoesNotPersist() throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/link"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"url\":\"https://health.example.com\",\"alias\":\"healthz\"}"))
+                .build();
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("reservado"));
+        try (var ps = conn.prepareStatement("SELECT url FROM shorturl WHERE id = 'healthz'");
+             var rs = ps.executeQuery()) {
+            assertFalse(rs.next());
+        }
+    }
+
+    @Test
+    void postAliasedLinkWithInvalidUrlReturnsUrlValidationMessage() throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/link"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"url\":\"javascript:alert(1)\",\"alias\":\"safe-name\"}"))
+                .build();
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(400, response.statusCode());
+        assertTrue(response.body().startsWith("La URL no es válida"));
+        assertFalse(response.body().contains("javascript"));
+    }
+
+    @Test
+    void postLinkWithOccupiedAliasReturnsSpanishConflictWithoutEchoingAlias() throws Exception {
+        var first = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/link"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"url\":\"https://one.example.com\",\"alias\":\"no-disponible\"}"))
+                .build();
+        client.send(first, HttpResponse.BodyHandlers.ofString());
+        var second = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/link"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"url\":\"https://two.example.com\",\"alias\":\"no-disponible\"}"))
+                .build();
+        var response = client.send(second, HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(409, response.statusCode());
+        assertTrue(response.body().contains("El alias no está disponible"));
+        assertFalse(response.body().contains("no-disponible"));
     }
 
     @Test
@@ -213,7 +275,7 @@ class LinkRoutesTest {
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         assertEquals(400, response.statusCode());
-        assertEquals("Invalid JSON", response.body());
+        assertEquals("El cuerpo de la solicitud no contiene un JSON válido.", response.body());
     }
 
     @Test

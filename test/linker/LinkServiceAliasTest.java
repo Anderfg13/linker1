@@ -83,6 +83,12 @@ class LinkServiceAliasTest {
         void rejectsReservedWordStylesCss() {
             assertFalse(LinkService.isValidAlias("styles.css"));
         }
+
+        @Test
+        void rejectsHealthCheckRouteAsReservedAlias() {
+            assertFalse(LinkService.isValidAlias("healthz"));
+            assertFalse(LinkService.isValidAlias("HEALTHZ"));
+        }
     }
 
     @Nested
@@ -129,6 +135,13 @@ class LinkServiceAliasTest {
         void throwsIllegalArgumentForInvalidUrlEvenWithValidAlias() {
             assertThrows(IllegalArgumentException.class,
                     () -> service.create("not a url", "mylink"));
+        }
+
+        @Test
+        void reservedAliasIsRejectedWithoutPersistingLink() throws SQLException {
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.create("https://example.com", "healthz"));
+            assertNull(repo.findUrlById("healthz"));
         }
     }
 }
