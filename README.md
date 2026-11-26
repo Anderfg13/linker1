@@ -24,6 +24,7 @@ Linker1 is a web application that lets you:
 - `GET /{id}` — Redirects (`301`) to the URL associated with the short code or alias. Responds `404` if it doesn't exist.
 - `HEAD /{id}` — Resolves a short link. Responds `200` with the real URL in the response body if found (without redirecting), or `404` if not.
 - `DELETE /{id}` — Deletes a short link. Responds `204` on success, or `404` if the short code or alias doesn't exist.
+- `GET /link/{id}/stats` — Returns `200` with `{"id":"...","clicks":N}`, or `404` if the link doesn't exist. Does not count as an opening.
 
 ## Course Deliverables (final assignment)
 

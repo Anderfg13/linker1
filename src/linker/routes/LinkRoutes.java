@@ -25,6 +25,31 @@ public final class LinkRoutes {
     }
 
     public void register(Javalin app) {
+        app.get("/link/{id}/stats", ctx -> {
+            log.trace("Received GET request on path={}", ctx.path());
+            var id = ctx.pathParam("id");
+            long start = System.currentTimeMillis();
+
+            Long clicks;
+            try {
+                clicks = service.getClicks(id);
+            } catch (Exception e) {
+                log.error("Failed to read stats for link id={}", id, e);
+                ctx.status(500).result("Internal error");
+                requestMetrics.recordRequest("/link/{id}/stats", 500, System.currentTimeMillis() - start);
+                return;
+            }
+
+            if (clicks == null) {
+                ctx.status(404).result("Not found");
+                requestMetrics.recordRequest("/link/{id}/stats", 404, System.currentTimeMillis() - start);
+                return;
+            }
+
+            ctx.json(Map.of("id", id, "clicks", clicks));
+            requestMetrics.recordRequest("/link/{id}/stats", 200, System.currentTimeMillis() - start);
+        });
+
         app.get("/{id}", ctx -> {
             log.trace("Received GET request on path={}", ctx.path());
             var id = ctx.pathParam("id");
@@ -33,7 +58,7 @@ public final class LinkRoutes {
 
             String url;
             try {
-                url = linkSpans.traceResolve(id, () -> service.get(id));
+                url = linkSpans.traceResolve(id, () -> service.open(id));
             } catch (Exception e) {
                 log.error("Failed to resolve link id={}", id, e);
                 ctx.status(500).result("Internal error");
@@ -44,8 +69,9 @@ public final class LinkRoutes {
             if (url != null) {
                 // Destinations can contain private query parameters; do not put them in logs.
                 log.info("Resolved link id={}", id);
-                ctx.redirect(url, HttpStatus.MOVED_PERMANENTLY);
-                requestMetrics.recordRequest("/{id}", 301, System.currentTimeMillis() - start);
+                ctx.header("Cache-Control", "no-store");
+                ctx.redirect(url, HttpStatus.FOUND);
+                requestMetrics.recordRequest("/{id}", 302, System.currentTimeMillis() - start);
             } else {
                 log.warn("Link id={} not found", id);
                 ctx.status(404).result("Not found");

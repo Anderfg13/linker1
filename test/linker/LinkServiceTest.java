@@ -23,7 +23,9 @@ class LinkServiceTest {
             stmt.execute("CREATE TABLE shorturl (id TEXT PRIMARY KEY, url TEXT)");
         }
         repo = new LinkRepository(conn);
+        repo.ensureClicksColumn();
         service = new LinkService(repo);
+
     }
 
     @Nested
@@ -184,5 +186,26 @@ class LinkServiceTest {
             var id = LinkService.generateId();
             assertTrue(id.matches("[a-f0-9]+"), "Expected hex characters, got: " + id);
         }
+    }
+
+    @Test
+    void openReturnsUrlAndCountsTheOpening() throws SQLException {
+        var link = service.create("https://example.com");
+
+        assertEquals("https://example.com", service.open(link.id()));
+        assertEquals(1L, (long) service.getClicks(link.id()));
+    }
+
+    @Test
+    void openReturnsNullForUnknownId() throws SQLException {
+        assertNull(service.open("missing1"));
+        assertNull(service.getClicks("missing1"));
+    }
+
+    @Test
+    void getDoesNotCountOpenings() throws SQLException {
+        var link = service.create("https://example.com");
+        service.get(link.id());
+        assertEquals(0L, (long) service.getClicks(link.id()));
     }
 }
