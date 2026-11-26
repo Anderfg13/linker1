@@ -32,4 +32,4 @@ curl -i -X POST http://localhost:8080/link \
 
 This feature implements the destination and alias rules in F1.1 of `AZURE_BOARDS_LINKER1.md`. It does not add accounts or management tokens. The existing `DELETE /{id}` endpoint remains unauthenticated, so anyone who knows a short ID can still delete that link; private link management requires a separate, agreed token feature. Destinations are returned in the redirect `Location` header by design, and HEAD continues to expose the destination under the existing API contract.
 
-The permanent `301` redirect is unchanged here. The separate F1.2 click-count proposal calls for `302` and cache controls and must be implemented as its own scope because it changes existing redirect semantics and operational checks.
+Redirect status: when this feature was written the redirect was a permanent `301`. The later click-count feature (HU-03/HU-04) changed it to `302` with `Cache-Control: no-store` so every visit is counted; see the `GET /{id}` entry in the README API section. The Lambda handler (`docs/SERVERLESS.md`) still answers `301` and does not count openings.
