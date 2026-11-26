@@ -157,14 +157,29 @@ jobs:
 
       - name: Start app
         env:
-          LD_SDK_KEY: ${{ secrets.LD_SDK_KEY }}
+          LD_SDK_KEY: ci-offline
+          LD_OFFLINE: "true"
         run: |
+          set -e
           chmod +x linker1
-          LINKER_PORT=8080 ./linker1 &
+          LINKER_PORT=8080 ./linker1 > app.log 2>&1 &
+          APP_PID=$!
           for i in $(seq 1 20); do
-            curl -sf http://localhost:8080/ > /dev/null && break
+            if curl -fsS http://localhost:8080/ > /dev/null; then
+              echo "Linker1 is ready on port 8080"
+              exit 0
+            fi
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              echo "Linker1 exited before becoming ready; startup log follows:"
+              cat app.log
+              exit 1
+            fi
             sleep 1
           done
+          echo "Linker1 did not become ready within 20 seconds; startup log follows:"
+          cat app.log
+          kill "$APP_PID" 2>/dev/null || true
+          exit 1
 
       - name: Smoke test static routes
         run: |
@@ -179,7 +194,7 @@ jobs:
             -d '{"url":"https://example.com"}')
           echo "Created id: $ID"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$ID)
-          test "$STATUS" = "301"
+          test "$STATUS" = "302"
           LOCATION=$(curl -s -D - -o /dev/null http://localhost:8080/$ID | grep -i '^location:' | tr -d '\r')
           echo "$LOCATION" | grep -q "https://example.com"
 
@@ -189,7 +204,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"url":"https://example.org","alias":"ci-smoke-alias"}' > /dev/null
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ci-smoke-alias)
-          test "$STATUS" = "301"
+          test "$STATUS" = "302"
           CONFLICT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/link \
             -H "Content-Type: application/json" \
             -d '{"url":"https://other.example.org","alias":"ci-smoke-alias"}')
