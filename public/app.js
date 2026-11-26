@@ -72,12 +72,31 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
+// navigator.clipboard only exists in secure contexts (HTTPS or localhost). On a plain
+// HTTP demo deployment it is undefined, so fall back to the legacy copy command.
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  const copied = document.execCommand('copy');
+  document.body.removeChild(area);
+  if (!copied) throw new Error('copy failed');
+}
+
 copyButton.addEventListener('click', async () => {
   const value = shortLink.href;
   if (!value) return;
 
   try {
-    await navigator.clipboard.writeText(value);
+    await copyText(value);
     setMessage('Enlace copiado al portapapeles.');
   } catch (error) {
     setMessage('No se pudo copiar el enlace. Selecciónalo y cópialo manualmente.', true);
